@@ -91,15 +91,14 @@ class UpdateByNSMaps
         $this->targetMapsArr = $tmObj->buildTargetMaps($this->loadedNSMapsArr, true, $onlyNSarr, $skipNSarr);
         
         $filesMapArr = TargetDiff::targetMapArrToFilesMapArr($this->targetMapsArr, $onlyNSarr, $skipNSarr);
-        if (!$filesMapArr) {
-            return null;
+        if ($filesMapArr) {
+            $filesLocalArr = TargetDiff::scanIntersectionFilesMapArr($filesMapArr);
+            $allNSInstalledArr = TargetDiff::findNSMentionedArr($filesLocalArr);
+            $notFoundFilesMapArr = TargetDiff::calcNotFoundArr($allNSInstalledArr, $this->targetMapsArr);
+            $modifiedFilesArr = TargetDiff::scanModifiedFiles($filesLocalArr);
         }
-        $filesLocalArr = TargetDiff::scanIntersectionFilesMapArr($filesMapArr);
-        $allNSInstalledArr = TargetDiff::findNSMentionedArr($filesLocalArr);
-        $notFoundFilesMapArr = TargetDiff::calcNotFoundArr($allNSInstalledArr, $this->targetMapsArr);
-        $modifiedFilesArr = TargetDiff::scanModifiedFiles($filesLocalArr);
-        return ($modifiedFilesArr || $notFoundFilesMapArr) ?
-            compact('modifiedFilesArr', 'notFoundFilesMapArr') :
-            null;
+        return
+            (empty($modifiedFilesArr) && empty($notFoundFilesMapArr)) ? null
+            : compact('modifiedFilesArr', 'notFoundFilesMapArr');
     }
 }
