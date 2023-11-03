@@ -1,9 +1,9 @@
 <?php
-namespace dynoser\nsmap;
+namespace dynoser\nsmupdate;
 
 use dynoser\autoload\AutoLoader;
-use dynoser\nsmap\TargetMaps;
-use dynoser\nsmap\TargetDiff;
+use dynoser\nsmupdate\TargetMaps;
+use dynoser\nsmupdate\TargetDiff;
 
 class UpdateByNSMaps
 {
