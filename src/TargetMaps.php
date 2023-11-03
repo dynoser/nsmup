@@ -1,5 +1,5 @@
 <?php
-namespace dynoser\nsmap;
+namespace dynoser\nsmupdate;
 
 use dynoser\autoload\AutoLoader;
 use dynoser\autoload\AutoLoadSetup;
