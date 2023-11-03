@@ -33,7 +33,7 @@ class UpdateByNSMaps
     }
 
     public function msg($msg) {
-        $this->tmObj->msg($msg);
+        $this->getTmObj()->msg($msg);
     }
 
     public function removeCache() {
