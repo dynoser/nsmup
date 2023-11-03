@@ -7,10 +7,16 @@ use dynoser\hashsig\HashSigBase;
 
 class TargetDiff
 {    
-    public static function targetMapArrToFilesMapArr(array $targetMapsArr): array {
+    public static function targetMapArrToFilesMapArr(array $targetMapsArr, array $onlyNSarr = [], array $skipNSarr = []): array {
         $filesMapArr = []; // [fullFileName] => [['nameSpacesArr'],['hashHexArr']]
         foreach($targetMapsArr as $nsMapKey => $targetMapArr) {
             foreach($targetMapArr as $nameSpace => $dlArr) {
+                if ($onlyNSarr && !\in_array($nameSpace, $onlyNSarr)) {
+                    continue;
+                }
+                if ($skipNSarr && \in_array($nameSpace, $skipNSarr)) {
+                    continue;
+                }
                 $hashAlg = $dlArr['*']['hashalg'] ?? 'sha256';
                 foreach($dlArr as $shortName => $remoteArr) {
                     if ($shortName === '*' || !\is_array($remoteArr)) {
