@@ -14,6 +14,8 @@ class UpdateByNSMaps
     public $remoteNSMapURLs = null;
     public $loadedNSMapsArr = null;
     public $targetMapsArr = null;
+    private $allNSInstalledArr = null;
+    public $reduced = false;
     
     public function __construct(bool $autoRun = true, bool $echoOn = true)
     {        
@@ -105,6 +107,17 @@ class UpdateByNSMaps
     }
     
     public function lookForDifferences(array $onlyNSarr = [], array $skipNSarr = []): ?array {
+        $filesLocalArr = $this->getFilesLocalArr($onlyNSarr, $skipNSarr);
+
+        $modifiedFilesArr = TargetDiff::scanModifiedFiles($filesLocalArr);
+        $notFoundFilesMapArr = TargetDiff::calcNotFoundArr($this->allNSInstalledArr, $this->targetMapsArr);
+
+        return
+            (empty($modifiedFilesArr) && empty($notFoundFilesMapArr)) ? null
+            : compact('modifiedFilesArr', 'notFoundFilesMapArr');
+    }
+
+    public function getFilesLocalArr(array $onlyNSarr = [], array $skipNSarr = []): array {
         $tmObj = $this->getTmObj();
 
         $this->remoteNSMapURLs = $tmObj->getRemoteNSMapURLs();
@@ -112,14 +125,18 @@ class UpdateByNSMaps
         $this->targetMapsArr = $tmObj->buildTargetMaps($this->loadedNSMapsArr, true, $onlyNSarr, $skipNSarr);
         
         $filesMapArr = TargetDiff::targetMapArrToFilesMapArr($this->targetMapsArr, $onlyNSarr, $skipNSarr);
-        if ($filesMapArr) {
-            $filesLocalArr = TargetDiff::scanIntersectionFilesMapArr($filesMapArr);
-            $allNSInstalledArr = TargetDiff::findNSMentionedArr($filesLocalArr);
-            $notFoundFilesMapArr = TargetDiff::calcNotFoundArr($allNSInstalledArr, $this->targetMapsArr);
-            $modifiedFilesArr = TargetDiff::scanModifiedFiles($filesLocalArr);
+        $filesLocalArr = TargetDiff::scanIntersectionFilesMapArr($filesMapArr);
+
+        $this->allNSInstalledArr = $filesMapArr ? TargetDiff::findNSMentionedArr($filesLocalArr) : [];
+        $this->reduced = !empty($onlyNSarr) || !empty($skipNSarr);
+
+        return $filesLocalArr;
+    }
+    
+    public function getAllNSInstalledArr() {
+        if (!$this->allNSInstalledArr || $this->reduced) {
+            $this->getFilesLocalArr();
         }
-        return
-            (empty($modifiedFilesArr) && empty($notFoundFilesMapArr)) ? null
-            : compact('modifiedFilesArr', 'notFoundFilesMapArr');
+        return $this->allNSInstalledArr;
     }
 }
