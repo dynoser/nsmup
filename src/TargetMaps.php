@@ -130,8 +130,8 @@ class TargetMaps
             }
             if ($canUsePrepMap && $this->cachedTargetMapFile) {
                 $targetMap = [];
-                if (!empty($dlMapArr['targetMapArr'])) {
-                    foreach($dlMapArr['targetMapArr'] as $tmName => $fileDataStr) {
+                if (!empty($dlMapArr['targetMapsArr'])) {
+                    foreach($dlMapArr['targetMapsArr'] as $tmName => $fileDataStr) {
                         $un = HELML::decode($fileDataStr);
                         if (\is_array($un)) {
                             $targetMap += $un;
