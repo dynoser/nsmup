@@ -41,7 +41,7 @@ class TargetDiff
         return $localFilesArr;
     }
     
-    public static function findNSMentionedArr($localFilesArr) {
+    public static function findNSMentionedArr(array $localFilesArr, array $notFoundFilesMapArr = []): array {
         $allNSInstalledArr = []; // [nameSpace] => [fileFull => [hashHex => fileLen]]
         foreach($localFilesArr as $fileFull => $hashArr) {
             foreach($hashArr as $hashHex => $lenNSArr) {
@@ -52,6 +52,18 @@ class TargetDiff
                 }
             }
         }
+        
+        // run again for notFound array
+        foreach($notFoundFilesMapArr as $fileFull => $hashArr) {
+            foreach($hashArr as $hashHex => $lenNSArr) {
+                foreach($lenNSArr as $fileLen => $nameSpaceArr) {
+                    foreach($nameSpaceArr as $nameSpace) {
+                        $allNSInstalledArr[$nameSpace][$fileFull][$hashHex] = $fileLen;
+                    }
+                }
+            }
+        }
+        
         return $allNSInstalledArr;
     }
     
@@ -92,5 +104,51 @@ class TargetDiff
             }
         }
         return $downFilesArr;
+    }
+    
+    public static function calcNotFoundArr(array $allNSInstalledArr, array $targetMapsArr) {
+        $notFoundFilesMapArr = [];
+        foreach($targetMapsArr as $nsMapKey => $targetMapArr) {
+            foreach($targetMapArr as $nameSpace => $dlArr) {
+                if (!isset($allNSInstalledArr[$nameSpace])) {
+                    continue;
+                }
+                $hashAlg = $dlArr['*']['hashalg'] ?? 'sha256';
+                foreach($dlArr as $shortName => $remoteArr) {
+                    if ($shortName === '*' || !\is_array($remoteArr)) {
+                        continue;
+                    }
+                    $prefixedFileName = $remoteArr[0];
+                    $fullFileName = AutoLoader::getPathPrefix($prefixedFileName);
+                    if (isset($allNSInstalledArr[$nameSpace][$fullFileName])) {
+                        continue;
+                    }
+                    
+                    $hashHex = $hashAlg . '#' . $remoteArr[1];
+                    $fileLen = $remoteArr[2];
+                    if (isset($notFoundFilesMapArr[$fullFileName][$hashHex][$fileLen])) {
+                        $notFoundFilesMapArr[$fullFileName][$hashHex][$fileLen][] = $nameSpace;
+                    } else {
+                        $notFoundFilesMapArr[$fullFileName][$hashHex][$fileLen] = [$nameSpace];
+                    }
+                }
+            }
+        }
+        return $notFoundFilesMapArr;
+    }
+    
+    public static function calcUpdatedFilesFromBuild(array $newResults): array {
+        $updatedFilesArr = [];
+        foreach($newResults as $nsMapKey => $nsMapArr) {
+            foreach($nsMapArr as $nameSpace => $filesInPkgArr) {
+                foreach($filesInPkgArr as $shortName => $fileArr) {
+                    if (!isset($fileArr['fileData']) || !\is_array($fileArr['fileData'])) {
+                        continue;
+                    }
+                    $updatedFilesArr[$nameSpace][$shortName] = $fileArr['fileData'];
+                }
+            }
+        }
+        return $updatedFilesArr;
     }
 }
