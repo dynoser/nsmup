@@ -38,8 +38,9 @@ class UpdateByNSMaps
 
     public function removeCache() {
         $this->msg("Cache removing: ");
+        $tmObj = $this->getTmObj();
         $changed = false;
-        $cachedTargetMapFile = $this->tmObj->cachedTargetMapFile;
+        $cachedTargetMapFile = $tmObj->cachedTargetMapFile;
         if ($cachedTargetMapFile && \is_file($cachedTargetMapFile) && \unlink($cachedTargetMapFile)) {
             $changed = true;
             $this->msg(" Successful removed chachedTargetMapFile\n");
