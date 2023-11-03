@@ -32,6 +32,26 @@ class UpdateByNSMaps
         return $this->tmObj;
     }
 
+    public function msg($msg) {
+        $this->tmObj->msg($msg);
+    }
+
+    public function removeCache() {
+        $this->msg("Cache removing: ");
+        $changed = false;
+        $cachedTargetMapFile = $this->tmObj->cachedTargetMapFile;
+        if ($cachedTargetMapFile && \is_file($cachedTargetMapFile) && \unlink($cachedTargetMapFile)) {
+            $changed = true;
+            $this->msg(" Successful removed chachedTargetMapFile\n");
+        }
+        $dynoFile = \constant('DYNO_FILE');
+        if ($dynoFile && \is_file($dynoFile) && \unlink($dynoFile)) {
+            $changed = true;
+            $this->msg(" Successful removed DYNO_FILE\n"); 
+        }
+        echo $changed ? "Complete\n" : "No changes\n";
+    }
+
     public function update(array $onlyNSarr = [], array $skipNSarr = [], array $doNotUpdateFilesArr = []) {
         // expand $doNotUpdateFilesArr to full pathes
         foreach($doNotUpdateFilesArr as $k => $prefixedFileName) {
