@@ -110,6 +110,18 @@ class TargetMaps
             $decodedCachedTargedMapArr = [];
         }
         
+        if ($downFilesArr && !$onEachFile) {
+            $onEachFile = function($hs, $remoteArr, $dlArr) {
+                $arr = $hs->hashSignedArr;
+                foreach($dlArr['successArr'] as $shortFile => $fileData) {
+                    if (isset($arr[$shortFile])) {
+                        $arr[$shortFile]['fileData'] = $fileData;
+                    }
+                }
+                return $arr;
+            };
+        }
+        
         $pkgArrArr = []; // [nsMapKey][nameSpace] => array dlArr or string error
         $usedPrepMap = false;
         foreach($loadedMapsArr as $nsMapKey => $dlMapArr) {
@@ -236,7 +248,7 @@ class TargetMaps
             }
         }
         
-        if (!$usedPrepMap && $this->cachedTargetMapFile && $pkgArrArr) {
+        if (!$usedPrepMap && $this->cachedTargetMapFile && $pkgArrArr && !$onlyNSarr && !$skipNSarr) {
             $helmlStr = HELML::encode($pkgArrArr);
             if ($helmlStr) {
                 $wb = \file_put_contents($this->cachedTargetMapFile, $helmlStr);
