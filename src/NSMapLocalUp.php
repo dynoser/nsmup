@@ -11,12 +11,15 @@ class NSMapLocalUp
     const NSMAP_HELML = 'nsmap.helml';
     const TARGETMAP_HELML = 'targetmap.helml';
     
+    public $tmbObj = null;
+    
     public function __construct(string $nsMapBaseDir) {
         $chkPath = \realpath($nsMapBaseDir);
         if (!$chkPath) {
             throw new \Exception("Not found nsMapBaseDir: $nsMapBaseDir");
         }
         $this->nsMapBaseDir = \strtr($chkPath, '\\', '/');
+        $this->tmbObj = new TargetMapBuilder();
     }
 
     public function run() {
@@ -48,51 +51,11 @@ class NSMapLocalUp
         }
         $nsMapArr = $dlMapArr['nsMapArr'];
         echo \count($nsMapArr) . " records found\n";
-        $nsMapLinksArr = TargetMaps::getRemotesFromNSMapArr($nsMapArr);
-        $lcnt = \count($nsMapLinksArr);
-        if (!$lcnt) {
-            echo "No links found\n";
-            return null;
-        }
-        echo "Verifycation $lcnt links:\n";
-        foreach($nsMapLinksArr as $nameSpace => $remoteArr) {
-            $fromURL = $remoteArr['fromURL'];
-            echo $nameSpace . ': :' . $fromURL . "\n Download... ";
-
-            $hs = new \dynoser\hashsig\HashSigBase;
-            try {
-                $dlArr = $hs->getFilesByHashSig(
-                    $fromURL,
-                    null,  //$saveToDir
-                    null,  //$baseURLs
-                    true,  //$doNotSaveFiles
-                    false, //$doNotOverWrite
-                    false, //$zipOnlyMode
-                    null   //$onlyTheseFilesArr
-                );
-                if (\is_array($dlArr)) {
-                    //echo $hs->hashSignedStr . "\n";
-                    echo " Success files: " . \count($dlArr['successArr']);
-                    $errCnt = \count($dlArr['errorsArr']);
-                    if ($errCnt) {
-                        echo ", Error files: $errCnt";
-                    } else {
-                        echo ", OK";
-                        $onePkg = $hs->hashSignedArr;
-                        $headArr = $hs->lastPkgHeaderArr;
-                        $onePkg['*'] = $headArr;
-                        $pkgArr[$nameSpace] = $onePkg; 
-                    }
-                } else {
-                    echo "ERROR";
-                }
-                echo "\n";
-            } catch (\Throwable $e) {
-                echo $e->getMessage();
-            } finally {
-                echo "\n";
-            }
-        }
+        $pkgArr = $this->tmbObj->build(
+            $nsMapArr,
+            [], //$oldTargetMapArr
+            0   //$timeToLivePkgSec = 3600
+        );
         return $pkgArr;
     }
 
