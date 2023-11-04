@@ -14,6 +14,8 @@ class TargetMaps
     
     public string $cachedTargetMapFile = '';
     
+    public $tmbObj = null;
+    
     public $echoOn = true;
     
     public function msg($msg) {
@@ -22,8 +24,10 @@ class TargetMaps
         }
     }
     
-    public function __construct()
+    public function __construct(bool $echoOn = true)
     {
+        $this->echoOn = $echoOn;
+        
         if (!\class_exists('dynoser\autoload\AutoLoadSetup', false)) {
             throw new \Exception("dynoser/autoload must be load before");
         }
@@ -42,8 +46,10 @@ class TargetMaps
         }
         
         if ($this->dynoObj->dynoDir && \class_exists('dynoser\\tools\\HELML')) {
-            $this->cachedTargetMapFile = $this->dynoObj->dynoDir . '/targetmap.helml';
+            $this->cachedTargetMapFile = $this->dynoObj->dynoDir . '/targetmap.php';
         }
+        
+        $this->tmbObj = new TargetMapBuilder($this->echoOn);
     }
     
     public function dynoObjCheckUp() {
@@ -94,7 +100,7 @@ class TargetMaps
     
     public function buildTargetMaps(
         array $loadedMapsArr,
-        bool $canUsePrepMap = true,
+        int $timeToLivePkgSec = 3600,
         array $onlyNSarr = [],
         array $skipNSarr = [],
         callable $onEachFile = null,
@@ -102,170 +108,110 @@ class TargetMaps
     ): array {
         $this->dynoObjCheckUp();
         
-        if ($this->cachedTargetMapFile && \is_file($this->cachedTargetMapFile)) {
-            $fileDataStr = \file_get_contents($this->cachedTargetMapFile);
-            $decodedCachedTargedMapArr = HELML::decode($fileDataStr);
+        if ($this->cachedTargetMapFile && empty($downFilesArr) && \is_file($this->cachedTargetMapFile)) {
+            $decodedCachedTargedMapArr = $this->loadTargetMapFile();
         }
         if (empty($decodedCachedTargedMapArr) || !\is_array($decodedCachedTargedMapArr)) {
             $decodedCachedTargedMapArr = [];
         }
         
+        // file downloading:
         if ($downFilesArr && !$onEachFile) {
-            $onEachFile = function($hs, $remoteArr, $dlArr) {
-                $arr = $hs->hashSignedArr;
+            $onEachFile = function($hs, $remoteArr, $dlArr) use($downFilesArr) {
+                $outArr = $hs->hashSignedArr;
                 foreach($dlArr['successArr'] as $shortFile => $fileData) {
-                    if (isset($arr[$shortFile])) {
-                        $arr[$shortFile]['fileData'] = $fileData;
+                    if (isset($outArr[$shortFile])) {
+                        $outArr[$shortFile]['fileData'] = $fileData;
                     }
                 }
-                return $arr;
+                
+                foreach($outArr as $shortFile => $hsArr) {
+                    if (isset($hsArr[0]) && $hsArr[0] === $shortFile) {
+                        $targetUnpack = $remoteArr['targetUnpackDir'];
+                        if (\substr($targetUnpack, -1) !== '/') {
+                            if (\substr($targetUnpack, -\strlen($shortFile)) === $shortFile) {
+                                $targetUnpack = \substr($targetUnpack, 0, -\strlen($shortFile));
+                            } else {
+                                $targetUnpack = \dirname($targetUnpack);
+                            }
+                        }
+                        $prefixedFileName = $targetUnpack . $shortFile;
+                        $fullTargetFile = AutoLoader::getPathPrefix($prefixedFileName);
+                        if ($fullTargetFile && $downFilesArr && (!empty($downFilesArr[$prefixedFileName]) || !empty($downFilesArr[$fullTargetFile]))) {
+                            if (!empty($hsArr['fileData'])) {
+                                $wb = \file_put_contents($fullTargetFile, $hsArr['fileData']);
+                                if ($wb) {
+                                    $outArr[$shortFile]['fileData'] = [$wb, $fullTargetFile];
+                                }
+                            }
+                        }
+                        $outArr[$shortFile][0] = $prefixedFileName;
+                    }
+                }
+                return $outArr;
             };
         }
         
         $pkgArrArr = []; // [nsMapKey][nameSpace] => array dlArr or string error
-        $usedPrepMap = false;
         foreach($loadedMapsArr as $nsMapKey => $dlMapArr) {
             if (empty($dlMapArr['nsMapArr'])) {
                 continue;
             }
-            if ($canUsePrepMap && $this->cachedTargetMapFile) {
-                $targetMap = [];
+            $oldTargetMapArr = $decodedCachedTargedMapArr[$nsMapKey] ?? [];
+
+            if ($timeToLivePkgSec && empty($downFilesArr)) {
                 if (!empty($dlMapArr['targetMapsArr'])) {
                     foreach($dlMapArr['targetMapsArr'] as $tmName => $fileDataStr) {
-                        $un = HELML::decode($fileDataStr);
-                        if (\is_array($un)) {
-                            $targetMap += $un;
+                        $targetMapFromPkgArr = HELML::decode($fileDataStr);
+                        if (\is_array($targetMapFromPkgArr)) {
+                            TargetMapBuilder::targetMapMerge($oldTargetMapArr, $targetMapFromPkgArr);
                         }
                     }
                 }
-                if (!$targetMap && $decodedCachedTargedMapArr) {
-                    if (isset($decodedCachedTargedMapArr[$nsMapKey])) {
-                        $targetMap = $decodedCachedTargedMapArr[$nsMapKey];
-                    }
-                }
-                if ($targetMap) {
-                    $usedPrepMap = true;
-                    $pkgArrArr[$nsMapKey] = $targetMap;
-                    continue;
-                }
             }
 
-            $pkgArrArr[$nsMapKey] = [];
             $nsMapArr = $dlMapArr['nsMapArr'];
-            $this->msg("Scan $nsMapKey " . \count($nsMapArr) . " records... ");
-            $nsMapRemotesArr = $this->getRemotesFromNSMapArr($nsMapArr);
-            $lcnt = \count($nsMapRemotesArr);
-            if (!$lcnt) {
-                $this->msg("Not found remote links\n");
-                continue;
+            if (empty($downFilesArr)) {
+                $this->msg("Scan $nsMapKey " . \count($nsMapArr) . " records... ");
+            } else {
+                $this->msg("Download mode ON ...");
+                $oldTargetMapArr = [];
             }
-            $this->msg("found $lcnt remote links\nChecking:\n");
-            foreach($nsMapRemotesArr as $nameSpace => $remoteArr) {
-                if ($onlyNSarr && !\in_array($nameSpace, $onlyNSarr)) {
-                    $this->msg("Package '$nameSpace' skip by onlyNSarr\n");
-                    continue;
-                }
-
-                if (\in_array($nameSpace, $skipNSarr)) {
-                    $this->msg("Package '$nameSpace' skip by skipNSarr\n");
-                    continue;
-                }
-                
-                if (!\is_array($remoteArr)) {
-                    $this->msg("Package '$nameSpace' skip because can't parse this remote definition");
-                    continue;
-                }
-                
-                $hashSigRemoteURL = $remoteArr['fromURL'];
-                
-                $this->msg("Package '$nameSpace' download from: $hashSigRemoteURL\n");
-                
-                if (!\array_key_exists($nameSpace, $pkgArrArr[$nsMapKey])) {
-                    $pkgArrArr[$nsMapKey][$nameSpace] = [];
-                }
-                
-                $hs = new HashSigBase;
-                try {
-                    $dlArr = $hs->getFilesByHashSig(
-                        $hashSigRemoteURL,
-                        null,  //$saveToDir
-                        null,  //$baseURLs
-                        true,  //$doNotSaveFiles
-                        false, //$doNotOverWrite
-                        false, //$zipOnlyMode
-                        null   //$onlyTheseFilesArr
-                    );
-                    if (\is_array($dlArr)) {
-                        $this->msg(" Success files: " . \count($dlArr['successArr']));
-                        $errCnt = \count($dlArr['errorsArr']);
-                        if ($errCnt) {
-                            $this->msg(", Error files: $errCnt");
-                        } else {
-                            $this->msg(", OK");
-                        }
-                        if ($onEachFile) {
-                            $dlArr = $onEachFile($hs, $remoteArr, $dlArr);
-                        } else {
-                            $dlArr = $hs->hashSignedArr;
-                        }
-                        foreach($dlArr as $shortFile => $hsArr) {
-                            if (isset($hsArr[0]) && $hsArr[0] === $shortFile) {
-                                $targetUnpack = $remoteArr['targetUnpackDir'];
-                                if (\substr($targetUnpack, -1) !== '/') {
-                                    if (\substr($targetUnpack, -\strlen($shortFile)) === $shortFile) {
-                                        $targetUnpack = \substr($targetUnpack, 0, -\strlen($shortFile));
-                                    } else {
-                                        $targetUnpack .= '/';
-                                    }
-                                }
-                                $prefixedFileName = $targetUnpack . $shortFile;
-                                $fullTargetFile = AutoLoader::getPathPrefix($prefixedFileName);
-                                if ($fullTargetFile && $downFilesArr && (!empty($downFilesArr[$prefixedFileName]) || !empty($downFilesArr[$fullTargetFile]))) {
-                                    if (!empty($hsArr['fileData'])) {
-                                        $wb = \file_put_contents($fullTargetFile, $hsArr['fileData']);
-                                        if ($wb) {
-                                            $dlArr[$shortFile]['fileData'] = [$wb, $fullTargetFile];
-                                        }
-                                    }
-                                }
-                                $dlArr[$shortFile][0] = $prefixedFileName;
-                            }
-                        }
-                        $dlArr['*'] = [
-                            'checktime' => time(),
-                            'hashalg' => $hs->lastPkgHeaderArr['hashalg'],
-                            'filescnt' => $hs->lastPkgHeaderArr['filescnt'],
-                            'fromurl' => $remoteArr['fromURL'],
-                            'target' => $remoteArr['targetUnpackDir'],
-                            'chkfile' => $remoteArr['checkFilesStr'],
-                            'ns' => $remoteArr['replaceNameSpace'],
-                        ];
-                        if ($remoteArr['replaceNameSpace'] === $remoteArr['targetUnpackDir']) {
-                            unset($dlArr['*']['target']);
-                        }
-                        $pkgArrArr[$nsMapKey][$nameSpace] = $dlArr;
-                    } else {
-                        $this->msg("ERROR");
-                        $pkgArrArr[$nsMapKey][$nameSpace] = "ERROR (Return not is array)";
-                    }
-                    $this->msg("\n");
-                } catch (\Throwable $e) {
-                    $errMsg = $e->getMessage();
-                    $pkgArrArr[$nsMapKey][$nameSpace] = $errMsg;
-                    $this->msg($errMsg);
-                } finally {
-                    $this->msg("\n");
-                }
-            }
+            
+            $pkgArrArr[$nsMapKey] = $this->tmbObj->build(
+                $nsMapArr,
+                $oldTargetMapArr,
+                $timeToLivePkgSec,
+                $onlyNSarr,
+                $skipNSarr,
+                $onEachFile,
+                empty($downFilesArr) ? '' : (" Target files:\n *" . \implode("\n *", \array_keys($downFilesArr)) . "\n")
+            );
         }
         
-        if (!$usedPrepMap && $this->cachedTargetMapFile && $pkgArrArr && !$onlyNSarr && !$skipNSarr) {
-            $helmlStr = HELML::encode($pkgArrArr);
-            if ($helmlStr) {
-                $wb = \file_put_contents($this->cachedTargetMapFile, $helmlStr);
-            }
+        
+        if ($this->cachedTargetMapFile && $pkgArrArr && empty($downFilesArr)) {
+            $this->saveTargetMapFile($pkgArrArr);
         }
         return $pkgArrArr;
+    }
+    
+    public function loadTargetMapFile(): ?array {
+        if ($this->cachedTargetMapFile && \is_file($this->cachedTargetMapFile)) {
+            $targetMapArr = (require $this->cachedTargetMapFile);
+            if (\is_array($targetMapArr)) {
+                return $targetMapArr;
+            }
+        }
+        return null;
+    }
+
+    public function saveTargetMapFile(array $targetMapArr) {
+        $dataStr = '<' . "?php\n" . 'return ' . \var_export($targetMapArr, true) . ";\n";
+        $wb = \file_put_contents($this->cachedTargetMapFile, $dataStr);
+        if (!$wb) {
+            throw new \Exception("Can't write targetMap cache file: " . $this->cachedTargetMapFile);
+        }
     }
     
     public static function getRemotesFromNSMapArr(array $nsMapArr): array {
