@@ -17,6 +17,8 @@ class UpdateByNSMaps
     private $allNSInstalledArr = null;
     public $reduced = false;
     
+    public $defaultPkgTTL = 3600;
+    
     public function __construct(bool $autoRun = true, bool $echoOn = true)
     {        
         $this->echoOn = $echoOn;
@@ -93,7 +95,7 @@ class UpdateByNSMaps
         if (!$downFilesArr) {
             return null;
         }
-        $newResults = $tmObj->buildTargetMaps($this->loadedNSMapsArr, false, \array_keys($allNSModifiedArr), $skipNSarr, null, $downFilesArr);
+        $newResults = $tmObj->buildTargetMaps($this->loadedNSMapsArr, $this->defaultPkgTTL, \array_keys($allNSModifiedArr), $skipNSarr, null, $downFilesArr);
         $updatedResultsArr = TargetDiff::calcUpdatedFilesFromBuild($newResults);
         if ($this->echoOn) {
             foreach($updatedResultsArr as $nameSpace => $updatedFilesArr) {
@@ -122,7 +124,7 @@ class UpdateByNSMaps
 
         $this->remoteNSMapURLs = $tmObj->getRemoteNSMapURLs();
         $this->loadedNSMapsArr = $tmObj->downLoadNSMaps($this->remoteNSMapURLs, true);
-        $this->targetMapsArr = $tmObj->buildTargetMaps($this->loadedNSMapsArr, true, $onlyNSarr, $skipNSarr);
+        $this->targetMapsArr = $tmObj->buildTargetMaps($this->loadedNSMapsArr, $this->defaultPkgTTL, $onlyNSarr, $skipNSarr);
         
         $filesMapArr = TargetDiff::targetMapArrToFilesMapArr($this->targetMapsArr, $onlyNSarr, $skipNSarr);
         $filesLocalArr = TargetDiff::scanIntersectionFilesMapArr($filesMapArr);
