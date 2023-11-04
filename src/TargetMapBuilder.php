@@ -10,7 +10,7 @@ class TargetMapBuilder
             echo $msg;
         }
     }
-    
+
     public function __construct(bool $echoOn = true) {
         $this->echoOn = $echoOn;
     }
@@ -21,7 +21,8 @@ class TargetMapBuilder
         int $timeToLivePkgSec = 3600,
         array $onlyNSarr = [],
         array $skipNSarr = [],      
-        callable $onEachFile = null
+        callable $onEachFile = null,
+        string $specialModeStr = ''
     ): ?array
     {
         $newTargetMapArr = [];
@@ -33,7 +34,11 @@ class TargetMapBuilder
             return null;
         }
 
-        $this->msg("Verifycation $lcnt links:\n");
+        if ($specialModeStr) {
+            $this->msg($specialModeStr);
+        } else {
+            $this->msg("Verifycation $lcnt links:\n");
+        }
 
         foreach($nsMapLinksArr as $nameSpace => $remoteArr) {
             if (!\is_array($remoteArr)) {
@@ -42,7 +47,7 @@ class TargetMapBuilder
             }
 
             $fromURL = $remoteArr['fromURL'];
-            if (!empty($oldTargetMapArr[$nameSpace]['*']['checktime']) && ($fromURL === $oldTargetMapArr[$nameSpace]['*']['fromURL'] ?? '')) {
+            if (!empty($oldTargetMapArr[$nameSpace]['*']['checktime']) && ($fromURL === ($oldTargetMapArr[$nameSpace]['*']['fromurl'] ?? ''))) {
                 $newTargetMapArr[$nameSpace] = $oldTargetMapArr[$nameSpace];
                 $ageTime = time() - $oldTargetMapArr[$nameSpace]['*']['checktime'];
                 if ($ageTime < $timeToLivePkgSec) {
@@ -51,12 +56,12 @@ class TargetMapBuilder
             }
 
             if ($onlyNSarr && !\in_array($nameSpace, $onlyNSarr)) {
-                $this->msg("Package '$nameSpace' skip by onlyNSarr\n");
+                $specialModeStr || $this->msg("Package '$nameSpace' skip by onlyNSarr\n");
                 continue;
             }
 
             if (\in_array($nameSpace, $skipNSarr)) {
-                $this->msg("Package '$nameSpace' skip by skipNSarr\n");
+                $specialModeStr || $this->msg("Package '$nameSpace' skip by skipNSarr\n");
                 continue;
             }
             
@@ -112,5 +117,24 @@ class TargetMapBuilder
             }
         }
         return $newTargetMapArr;
+    }
+    
+    public static function targetMapMerge(array & $targetMapArr, array $targetMapAddArr): array {
+        $onlyAddedNsArr = [];
+        foreach($targetMapAddArr as $nameSpace => $pkgArr) {
+            $needAdd = true;
+            if (\array_key_exists($nameSpace, $targetMapArr)) {
+                $curCheckTime = $targetMapArr[$nameSpace]['*']['checktime'] ?? 0;
+                $addCheckTime = $pkgArr['*']['checktime'] ?? 0;
+                if (!$addCheckTime || $curCheckTime >= $addCheckTime) {
+                    $needAdd = false;
+                }
+            }
+            if ($needAdd) {
+                $targetMapArr[$nameSpace] = $pkgArr;
+                $onlyAddedNsArr[] = $nameSpace;
+            }
+        }
+        return $onlyAddedNsArr;
     }
 }
