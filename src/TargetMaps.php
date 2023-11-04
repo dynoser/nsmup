@@ -231,7 +231,18 @@ class TargetMaps
                                 $dlArr[$shortFile][0] = $prefixedFileName;
                             }
                         }
-                        $dlArr['*'] = $hs->lastPkgHeaderArr;
+                        $dlArr['*'] = [
+                            'checktime' => time(),
+                            'hashalg' => $hs->lastPkgHeaderArr['hashalg'],
+                            'filescnt' => $hs->lastPkgHeaderArr['filescnt'],
+                            'fromurl' => $remoteArr['fromURL'],
+                            'target' => $remoteArr['targetUnpackDir'],
+                            'chkfile' => $remoteArr['checkFilesStr'],
+                            'ns' => $remoteArr['replaceNameSpace'],
+                        ];
+                        if ($remoteArr['replaceNameSpace'] === $remoteArr['targetUnpackDir']) {
+                            unset($dlArr['*']['target']);
+                        }
                         $pkgArrArr[$nsMapKey][$nameSpace] = $dlArr;
                     } else {
                         $this->msg("ERROR");
