@@ -18,11 +18,17 @@ class TargetDiff
                     continue;
                 }
                 $hashAlg = $dlArr['*']['hashalg'] ?? 'sha256';
+
+                $targetDir = $dlArr['*']['target'] ?? ' /';
+                if (\substr($targetDir, -1) !== '/') {
+                    $targetDir = \dirname($targetDir);
+                }
+                
                 foreach($dlArr as $shortName => $remoteArr) {
                     if ($shortName === '*' || !\is_array($remoteArr)) {
                         continue;
                     }
-                    $fullFileName = $remoteArr[0];
+                    $fullFileName = $targetDir . $remoteArr[0];
                     $hashHex = $hashAlg . '#' . $remoteArr[1];
                     $fileLen = $remoteArr[2];
                     if (isset($filesMapArr[$fullFileName][$hashHex][$fileLen])) {
@@ -38,8 +44,8 @@ class TargetDiff
     
     public static function scanIntersectionFilesMapArr(array $filesMapArr): array {
         $localFilesArr = []; // [fullFilePath] => versions
-        foreach($filesMapArr as $fileFull => $hashArr) {
-            $fullFilePath = AutoLoader::getPathPrefix($fileFull);
+        foreach($filesMapArr as $prefixedFileFull => $hashArr) {
+            $fullFilePath = AutoLoader::getPathPrefix($prefixedFileFull);
             if ($fullFilePath && \is_file($fullFilePath)) {
                 $localFilesArr[$fullFilePath] = $hashArr;
             }
@@ -48,12 +54,12 @@ class TargetDiff
     }
     
     public static function findNSMentionedArr(array $localFilesArr, array $notFoundFilesMapArr = []): array {
-        $allNSInstalledArr = []; // [nameSpace] => [fileFull => [hashHex => fileLen]]
+        $allNSMentionedArr = []; // [nameSpace] => [fileFull => [hashHex => fileLen]]
         foreach($localFilesArr as $fileFull => $hashArr) {
             foreach($hashArr as $hashHex => $lenNSArr) {
                 foreach($lenNSArr as $fileLen => $nameSpaceArr) {
                     foreach($nameSpaceArr as $nameSpace) {
-                        $allNSInstalledArr[$nameSpace][$fileFull][$hashHex] = $fileLen;
+                        $allNSMentionedArr[$nameSpace][$fileFull][$hashHex] = $fileLen;
                     }
                 }
             }
@@ -64,13 +70,13 @@ class TargetDiff
             foreach($hashArr as $hashHex => $lenNSArr) {
                 foreach($lenNSArr as $fileLen => $nameSpaceArr) {
                     foreach($nameSpaceArr as $nameSpace) {
-                        $allNSInstalledArr[$nameSpace][$fileFull][$hashHex] = $fileLen;
+                        $allNSMentionedArr[$nameSpace][$fileFull][$hashHex] = $fileLen;
                     }
                 }
             }
         }
         
-        return $allNSInstalledArr;
+        return $allNSMentionedArr;
     }
     
     public static function scanModifiedFiles(array $filesLocalArr): array {
@@ -120,11 +126,16 @@ class TargetDiff
                     continue;
                 }
                 $hashAlg = $dlArr['*']['hashalg'] ?? 'sha256';
+                $targetDir = $dlArr['*']['target'] ?? ' /';
+                if (\substr($targetDir, -1) !== '/') {
+                    $targetDir = \dirname($targetDir);
+                }
+
                 foreach($dlArr as $shortName => $remoteArr) {
                     if ($shortName === '*' || !\is_array($remoteArr)) {
                         continue;
                     }
-                    $prefixedFileName = $remoteArr[0];
+                    $prefixedFileName = $targetDir . $remoteArr[0];
                     $fullFileName = AutoLoader::getPathPrefix($prefixedFileName);
                     if (isset($allNSInstalledArr[$nameSpace][$fullFileName])) {
                         continue;
