@@ -18,7 +18,10 @@ class TargetMapBuilder
     public function build(
         array $nsMapArr,
         array $oldTargetMapArr = [],
-        int $timeToLivePkgSec = 3600
+        int $timeToLivePkgSec = 3600,
+        array $onlyNSarr = [],
+        array $skipNSarr = [],      
+        callable $onEachFile = null
     ): ?array
     {
         $newTargetMapArr = [];
@@ -26,13 +29,18 @@ class TargetMapBuilder
         $nsMapLinksArr = TargetMaps::getRemotesFromNSMapArr($nsMapArr);
         $lcnt = \count($nsMapLinksArr);
         if (!$lcnt) {
-            $this->msg("No links found\n");
+            $this->msg("No remote links found\n");
             return null;
         }
 
         $this->msg("Verifycation $lcnt links:\n");
 
         foreach($nsMapLinksArr as $nameSpace => $remoteArr) {
+            if (!\is_array($remoteArr)) {
+                $this->msg("Package '$nameSpace' skip because remote definition not parsed\n");
+                continue;
+            }
+
             $fromURL = $remoteArr['fromURL'];
             if (!empty($oldTargetMapArr[$nameSpace]['*']['checktime']) && ($fromURL === $oldTargetMapArr[$nameSpace]['*']['fromURL'] ?? '')) {
                 $newTargetMapArr[$nameSpace] = $oldTargetMapArr[$nameSpace];
@@ -41,8 +49,18 @@ class TargetMapBuilder
                     continue;
                 }
             }
+
+            if ($onlyNSarr && !\in_array($nameSpace, $onlyNSarr)) {
+                $this->msg("Package '$nameSpace' skip by onlyNSarr\n");
+                continue;
+            }
+
+            if (\in_array($nameSpace, $skipNSarr)) {
+                $this->msg("Package '$nameSpace' skip by skipNSarr\n");
+                continue;
+            }
             
-            $this->msg($nameSpace . ': :' . $fromURL . "\n Download... ");
+            $this->msg($nameSpace . ' :' . $fromURL . "\n Download... ");
 
             $hs = new \dynoser\hashsig\HashSigBase;
             try {
@@ -57,13 +75,18 @@ class TargetMapBuilder
                 );
                 if (\is_array($dlArr)) {
                     //echo $hs->hashSignedStr . "\n";
-                    $this->msg(" Success files: " . \count($dlArr['successArr']));
+                    $sucCnt = \count($dlArr['successArr']);
                     $errCnt = \count($dlArr['errorsArr']);
+                    $this->msg(" Success files: " . $sucCnt);
+                    if ($onEachFile) {
+                        $onePkg = $onEachFile($hs, $remoteArr, $dlArr);
+                    } else {
+                        $onePkg = $hs->hashSignedArr;
+                    }
                     if ($errCnt) {
                         $this->msg(", Error files: $errCnt");
                     } else {
                         $this->msg(", OK");
-                        $onePkg = $hs->hashSignedArr;
                         $onePkg['*'] = [
                             'checktime' => time(),
                             'hashalg' => $hs->lastPkgHeaderArr['hashalg'],
