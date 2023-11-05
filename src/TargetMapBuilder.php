@@ -37,7 +37,7 @@ class TargetMapBuilder
         if ($specialModeStr) {
             $this->msg($specialModeStr);
         } else {
-            $this->msg("Verifycation $lcnt links:\n");
+            $this->msg("($lcnt package links)\n");
         }
 
         foreach($nsMapLinksArr as $nameSpace => $remoteArr) {
@@ -50,7 +50,7 @@ class TargetMapBuilder
             if (!empty($oldTargetMapArr[$nameSpace]['*']['checktime']) && ($fromURL === ($oldTargetMapArr[$nameSpace]['*']['fromurl'] ?? ''))) {
                 $newTargetMapArr[$nameSpace] = $oldTargetMapArr[$nameSpace];
                 $ageTime = time() - $oldTargetMapArr[$nameSpace]['*']['checktime'];
-                if ($ageTime < $timeToLivePkgSec) {
+                if (empty($oldTargetMapArr[$nameSpace]['*']['forceupdate']) && ($ageTime < $timeToLivePkgSec)) {
                     continue;
                 }
             }
