@@ -13,13 +13,13 @@ class NSMapLocalUp
     
     public $tmbObj = null;
     
-    public function __construct(string $nsMapBaseDir) {
+    public function __construct(string $nsMapBaseDir, $echoOn = true) {
         $chkPath = \realpath($nsMapBaseDir);
         if (!$chkPath) {
             throw new \Exception("Not found nsMapBaseDir: $nsMapBaseDir");
         }
         $this->nsMapBaseDir = \strtr($chkPath, '\\', '/');
-        $this->tmbObj = new TargetMapBuilder();
+        $this->tmbObj = new TargetMapBuilder($echoOn);
     }
 
     public function run() {
