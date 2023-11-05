@@ -30,8 +30,7 @@ class UpdateByNSMaps
     
     public function getTmObj() {
         if (!$this->tmObj) {
-            $this->tmObj = new TargetMaps();
-            $this->tmObj->echoOn = $this->echoOn;
+            $this->tmObj = new TargetMaps($this->echoOn);
         }
         return $this->tmObj;
     }
@@ -86,9 +85,7 @@ class UpdateByNSMaps
         // remove $doNotUpdateFilesArr from $downFilesArr
         foreach($doNotUpdateFilesArr as $fullFileName) {
             if (isset($downFilesArr[$fullFileName])) {
-                if ($this->echoOn) {
-                    $tmObj->msg("Skip update for file: $fullFileName \n");
-                }
+                $tmObj->msg("Skip update for file: $fullFileName \n");
                 unset($downFilesArr[$fullFileName]);
             }
         }
