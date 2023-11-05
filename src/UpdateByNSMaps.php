@@ -14,6 +14,8 @@ class UpdateByNSMaps
     public $remoteNSMapURLs = null;
     public $loadedNSMapsArr = null;
     public $targetMapsArr = null;
+    public $filesMapArr = null;
+    public $filesLocalArr = null; // Only local f
     private $allNSInstalledArr = null;
     public $reduced = false;
     
@@ -123,13 +125,13 @@ class UpdateByNSMaps
         $this->loadedNSMapsArr = $tmObj->downLoadNSMaps($this->remoteNSMapURLs, true);
         $this->targetMapsArr = $tmObj->buildTargetMaps($this->loadedNSMapsArr, $this->defaultPkgTTL, $onlyNSarr, $skipNSarr);
         
-        $filesMapArr = TargetDiff::targetMapArrToFilesMapArr($this->targetMapsArr, $onlyNSarr, $skipNSarr);
-        $filesLocalArr = TargetDiff::scanIntersectionFilesMapArr($filesMapArr);
+        $this->filesMapArr = TargetDiff::targetMapArrToFilesMapArr($this->targetMapsArr, $onlyNSarr, $skipNSarr);
+        $this->filesLocalArr = TargetDiff::scanIntersectionFilesMapArr($this->filesMapArr);
 
-        $this->allNSInstalledArr = $filesMapArr ? TargetDiff::findNSMentionedArr($filesLocalArr) : [];
+        $this->allNSInstalledArr = $this->filesMapArr ? TargetDiff::findNSMentionedArr($this->filesLocalArr) : [];
         $this->reduced = !empty($onlyNSarr) || !empty($skipNSarr);
 
-        return $filesLocalArr;
+        return $this->filesLocalArr;
     }
     
     public function getAllNSInstalledArr() {
@@ -137,5 +139,27 @@ class UpdateByNSMaps
             $this->getFilesLocalArr();
         }
         return $this->allNSInstalledArr;
+    }
+    
+    public function getAllNSKnownArr() {
+        if (!$this->allNSInstalledArr || $this->reduced) {
+            $this->getFilesLocalArr();
+        }
+
+        $allNSknownArr = []; // [nameSpace] => true
+        foreach($this->filesMapArr as $fileFull => $hashArr) {
+            foreach($hashArr as $hashHex => $lenNSArr) {
+                foreach($lenNSArr as $fileLen => $nameSpaceArr) {
+                    foreach($nameSpaceArr as $nameSpace) {
+                        $allNSknownArr[$nameSpace] = false;
+                    }
+                }
+            }
+        }
+        
+        foreach($this->allNSInstalledArr as $nameSpace => $filesArr) {
+            $allNSknownArr[$nameSpace] = \array_keys($filesArr);
+        }
+        return $allNSknownArr;
     }
 }
