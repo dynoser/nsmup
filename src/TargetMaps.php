@@ -3,7 +3,6 @@ namespace dynoser\nsmupdate;
 
 use dynoser\autoload\AutoLoader;
 use dynoser\autoload\AutoLoadSetup;
-use dynoser\hashsig\HashSigBase;
 use dynoser\autoload\DynoLoader;
 use dynoser\tools\HELML;
 use dynoser\nsmupdate\TargetMapBuilder;
@@ -83,28 +82,6 @@ class TargetMaps
 
         return $remoteNSMapURLs;
     }
-
-//    public function getTargetMaps(
-//        array $remoteNSMapURLs = null,
-//        int $timeToLivePkgSec = 3600,
-//        array $onlyNSarr = [],
-//        array $skipNSarr = [],
-//        callable $onEachFile = null,
-//        array $downFilesArr = []
-//    ) {
-//        $this->dynoObjCheckUp();
-//
-//        if (!$remoteNSMapURLs) {
-//            $remoteNSMapURLs = $this->getRemoteNSMapURLs();
-//        }
-//
-//        // try download nsmaps from remote urls
-//        $loadedNSMapsArr = $this->downLoadNSMaps($remoteNSMapURLs, true);
-//        
-//        $pkgArrArr = $this->buildTargetMaps($loadedNSMapsArr, $timeToLivePkgSec, $onlyNSarr, $skipNSarr, $onEachFile, $downFilesArr);
-//        
-//        return $pkgArrArr;
-//    }
     
     public function buildTargetMaps(
         array $loadedMapsArr,
@@ -196,8 +173,7 @@ class TargetMaps
                 empty($downFilesArr) ? '' : (" Target files:\n *" . \implode("\n *", \array_keys($downFilesArr)) . "\n")
             );
         }
-        
-        
+
         if ($this->cachedTargetMapFile && $pkgArrArr && empty($downFilesArr)) {
             $this->saveTargetMapFile($pkgArrArr);
         }
