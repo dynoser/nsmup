@@ -6,6 +6,7 @@ use dynoser\autoload\AutoLoadSetup;
 use dynoser\hashsig\HashSigBase;
 use dynoser\autoload\DynoLoader;
 use dynoser\tools\HELML;
+use dynoser\nsmupdate\TargetMapBuilder;
 
 class TargetMaps
 {
@@ -45,7 +46,7 @@ class TargetMaps
             $this->dynoObj->checkCreateDynoDir($this->dynoObj->vendorDir);
         }
         
-        if ($this->dynoObj->dynoDir && \class_exists('dynoser\\tools\\HELML')) {
+        if ($this->dynoObj->dynoDir) {
             $this->cachedTargetMapFile = $this->dynoObj->dynoDir . '/targetmap.php';
         }
         
@@ -83,20 +84,27 @@ class TargetMaps
         return $remoteNSMapURLs;
     }
 
-    public function getTargetMaps(array $remoteNSMapURLs = null, bool $canUsePrepMap = true, array $onlyNSarr = [], array $skipNSarr = [], callable $onEachFile = null, array $downFilesArr = []) {
-        $this->dynoObjCheckUp();
-
-        if (!$remoteNSMapURLs) {
-            $remoteNSMapURLs = $this->getRemoteNSMapURLs();
-        }
-
-        // try download nsmaps from remote urls
-        $loadedNSMapsArr = $this->downLoadNSMaps($remoteNSMapURLs, true);
-        
-        $pkgArrArr = $this->buildTargetMaps($loadedNSMapsArr, $canUsePrepMap, $onlyNSarr, $skipNSarr, $downFilesArr);
-        
-        return $pkgArrArr;
-    }
+//    public function getTargetMaps(
+//        array $remoteNSMapURLs = null,
+//        int $timeToLivePkgSec = 3600,
+//        array $onlyNSarr = [],
+//        array $skipNSarr = [],
+//        callable $onEachFile = null,
+//        array $downFilesArr = []
+//    ) {
+//        $this->dynoObjCheckUp();
+//
+//        if (!$remoteNSMapURLs) {
+//            $remoteNSMapURLs = $this->getRemoteNSMapURLs();
+//        }
+//
+//        // try download nsmaps from remote urls
+//        $loadedNSMapsArr = $this->downLoadNSMaps($remoteNSMapURLs, true);
+//        
+//        $pkgArrArr = $this->buildTargetMaps($loadedNSMapsArr, $timeToLivePkgSec, $onlyNSarr, $skipNSarr, $onEachFile, $downFilesArr);
+//        
+//        return $pkgArrArr;
+//    }
     
     public function buildTargetMaps(
         array $loadedMapsArr,
