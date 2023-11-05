@@ -79,7 +79,6 @@ class TargetMapBuilder
                     null   //$onlyTheseFilesArr
                 );
                 if (\is_array($dlArr)) {
-                    //echo $hs->hashSignedStr . "\n";
                     $sucCnt = \count($dlArr['successArr']);
                     $errCnt = \count($dlArr['errorsArr']);
                     $this->msg(" Success files: " . $sucCnt);
