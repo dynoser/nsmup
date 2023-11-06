@@ -58,7 +58,7 @@ class UpdateByNSMaps
         echo $changed ? "Complete\n" : "No changes\n";
     }
 
-    public function update(array $onlyNSarr = [], array $skipNSarr = [], array $doNotUpdateFilesArr = []) {
+    public function update(array $onlyNSarr = [], array $skipNSarr = [], array $doNotUpdateFilesArr = [], array $updateByHashesOnlyArr = []) {
         // expand $doNotUpdateFilesArr to full pathes
         foreach($doNotUpdateFilesArr as $k => $prefixedFileName) {
             $fullFileName = AutoLoader::getPathPrefix($prefixedFileName);
@@ -66,6 +66,13 @@ class UpdateByNSMaps
                 throw new \Exception("Bad file specification: $prefixedFileName , name must be prefixed. Use '*' prefix for absolut pathes");
             }
             $doNotUpdateFilesArr[$k] = \strtr($fullFileName, '\\', '/');
+        }
+        
+        // check $updateByHashesOnlyArr
+        foreach($updateByHashesOnlyArr as $k => $v) {
+            if (empty($v) || !\strpos($k, '#')) {
+                throw new \Exception("Incorrect updateByHashesOnlyArr (code error)");
+            }
         }
         
         $changesArr = $this->lookForDifferences($onlyNSarr, $skipNSarr);
@@ -82,7 +89,7 @@ class UpdateByNSMaps
         $tmObj = $this->getTmObj();
 
         $allNSModifiedArr = TargetDiff::findNSMentionedArr($modifiedFilesArr, $notFoundFilesMapArr);
-        $downFilesArr = TargetDiff::prepareDownLoadFilesArr($allNSModifiedArr);
+        $downFilesArr = TargetDiff::prepareDownLoadFilesArr($allNSModifiedArr, $updateByHashesOnlyArr);
 
         // remove $doNotUpdateFilesArr from $downFilesArr
         foreach($doNotUpdateFilesArr as $fullFileName) {

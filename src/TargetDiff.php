@@ -107,11 +107,14 @@ class TargetDiff
         return $modifiedFiles;
     }
     
-    public static function prepareDownLoadFilesArr($allNSModifiedArr) {
+    public static function prepareDownLoadFilesArr($allNSModifiedArr, $updateByHashesOnlyArr = []) {
         // source format: $allNSModifiedArr[$nameSpace][$fileFull][$hashHex] = $fileLen;
         $downFilesArr = [];
         foreach($allNSModifiedArr as $nameSpace => $modifFilesArr) {
             foreach($modifFilesArr as $fileFull => $aboutFileArr) {
+                if ($updateByHashesOnlyArr && empty($updateByHashesOnlyArr[\key($aboutFileArr)])) {
+                    continue;
+                }
                 $downFilesArr[$fileFull] = $aboutFileArr;
             }
         }
