@@ -79,11 +79,19 @@ class TargetDiff
         return $allNSMentionedArr;
     }
     
+    /**
+     * Looking for files whose hashes differ from the specified
+     * 
+     * @param array $filesLocalArr [fileFull][expected sha256#hash] => value
+     * @return array [fileFull][oldHash] => value
+     */
+    
     public static function scanModifiedFiles(array $filesLocalArr): array {
-        $modifiedFiles = [];
         $defaultHashAlg = HashSigBase::DEFAULT_HASH_ALG;
+        $modifiedFiles = []; // [fileFull][oldHash] => any value from source array
+        //Source Array: [fileFull][expected sha256#hash] => any value
         foreach($filesLocalArr as $fileFull => $pkgArr) {
-            foreach($pkgArr as $hashStr => $lenNsArr) {
+            foreach($pkgArr as $hashStr => $anyValue) {
                 $fileDataStr = \file_get_contents($fileFull);
                 $i = \strpos($hashStr, '#');
                 if (false !== $i) {
@@ -100,7 +108,7 @@ class TargetDiff
                     $chkHashHex = \hash($hashAlg, $fileDataStr);
                 }
                 if ($chkHashHex !== $hashHex) {
-                    $modifiedFiles[$fileFull][$hashStr] = $lenNsArr;
+                    $modifiedFiles[$fileFull][$hashStr] = $anyValue;
                 }
             }
         }
