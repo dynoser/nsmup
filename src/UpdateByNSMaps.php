@@ -128,7 +128,8 @@ class UpdateByNSMaps
     public function getRemoteNSMapURLs() {
         if (!$this->remoteNSMapURLs) {
             $tmObj = $this->getTmObj();
-            $this->remoteNSMapURLs = $tmObj->getRemoteNSMapURLs();
+            $tmObj->dynoObjCheckUp();
+            $this->remoteNSMapURLs = $tmObj->dynoObj->getCachedRemoteNSMapURLs();
         }
         return $this->remoteNSMapURLs;
     }
@@ -139,8 +140,7 @@ class UpdateByNSMaps
 
     public function getFilesLocalArr(array $onlyNSarr = [], array $skipNSarr = []): array {
         $tmObj = $this->getTmObj();
-
-        $this->tmObj->dynoObjCheckUp();
+        $tmObj->dynoObjCheckUp();
         $this->remoteNSMapURLs = $tmObj->dynoObj->getCachedRemoteNSMapURLs();
         $this->loadedNSMapsArr = $tmObj->downLoadNSMaps($this->remoteNSMapURLs, true);
         $this->targetMapsArr = $tmObj->buildTargetMaps($this->loadedNSMapsArr, $this->defaultPkgTTL, $onlyNSarr, $skipNSarr);
