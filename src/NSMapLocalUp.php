@@ -2,7 +2,7 @@
 namespace dynoser\nsmupdate;
 
 use dynoser\autoload\DynoLoader;
-use dynoser\tools\HELML;
+use dynoser\HELML\HELML;
 
 class NSMapLocalUp
 {
