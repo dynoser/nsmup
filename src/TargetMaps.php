@@ -4,7 +4,7 @@ namespace dynoser\nsmupdate;
 use dynoser\autoload\AutoLoader;
 use dynoser\autoload\AutoLoadSetup;
 use dynoser\autoload\DynoLoader;
-use dynoser\tools\HELML;
+use dynoser\HELML\HELML;
 use dynoser\nsmupdate\TargetMapBuilder;
 
 class TargetMaps
@@ -17,6 +17,8 @@ class TargetMaps
     public $tmbObj = null;
     
     public $echoOn = true;
+    
+    public static $useHELMLforTargetMap = true;
     
     public function msg($msg) {
         if ($this->echoOn) {
@@ -37,50 +39,33 @@ class TargetMaps
             throw new \Exception("No dynamic loading mode in the autoloader (dynoObj DynoLoader)");
         }
         
-        if (!$this->dynoObj->vendorDir) {
+        if (!$this->dynoObj::$vendorDir) {
             throw new \Exception("Empty vendorDir in dynoObj");
         }
 
-        if (!$this->dynoObj->dynoDir) {
-            $this->dynoObj->checkCreateDynoDir($this->dynoObj->vendorDir);
+        if (!$this->dynoObj::$dynoDir) {
+            $this->dynoObj->checkCreateDynoDir();
         }
         
-        if ($this->dynoObj->dynoDir) {
-            $this->cachedTargetMapFile = $this->dynoObj->dynoDir . '/targetmap.php';
+        if ($this->dynoObj::$dynoDir) {
+            $this->cachedTargetMapFile = $this->dynoObj::$dynoDir . '/targetmap' . (self::$useHELMLforTargetMap ? '.helml' : '.php');
         }
         
         $this->tmbObj = new TargetMapBuilder($this->echoOn);
     }
-    
+    /**
+     * upgrade $this->dynoObj from DynoLoader to DynoImporter (if need)
+     *
+     * @throws \Exception
+     */
     public function dynoObjCheckUp() {
         if (!$this->dynoObj) {
             throw new \Exception("dynoObj not found, code error");
         }
-        // upgrade $this->dynoObj from DynoLoader to DynoImporter (if need)
         if (!$this->dynoIsImp) {
             $this->dynoObj = $this->dynoObj->makeDynoImporterObj();
             $this->dynoIsImp = true;
         }        
-    }
-    
-    public function getRemoteNSMapURLs(): array {
-        $this->dynoObjCheckUp();
-        
-        // load all current records from nsmap local cache
-        $nsMapArr = $this->dynoObj->loadNSMapFile();
-        if (!$nsMapArr) {
-            // no nsmap in cache, try rebuild nsmap cache
-            $nsMapArr = $this->dynoObj->rebuildDynoCache();
-            if (!$nsMapArr) {
-                // can't rebuild, we don't have nsmap urls
-                throw new \Exception("No nsmap data");
-            }
-        }
-        
-        // get remote-nsmap list
-        $remoteNSMapURLs = $nsMapArr[DynoLoader::REMOTE_NSMAP_KEY] ?? [];
-
-        return $remoteNSMapURLs;
     }
     
     public function buildTargetMaps(
@@ -181,17 +166,24 @@ class TargetMaps
     }
     
     public function loadTargetMapFile(): ?array {
+        $targetMapArr = null;
         if ($this->cachedTargetMapFile && \is_file($this->cachedTargetMapFile)) {
-            $targetMapArr = (require $this->cachedTargetMapFile);
-            if (\is_array($targetMapArr)) {
-                return $targetMapArr;
+            if (self::$useHELMLforTargetMap) {
+                $dataStr = \file_get_contents($this->cachedTargetMapFile);
+                $targetMapArr = HELML::decode($dataStr);
+            } else {
+                $targetMapArr = (require $this->cachedTargetMapFile);
             }
         }
-        return null;
+        return \is_array($targetMapArr) ? $targetMapArr : null;
     }
 
     public function saveTargetMapFile(array $targetMapArr) {
-        $dataStr = '<' . "?php\n" . 'return ' . \var_export($targetMapArr, true) . ";\n";
+        if (self::$useHELMLforTargetMap) {
+            $dataStr = HELML::encode($targetMapArr);
+        } else {
+            $dataStr = '<' . "?php\n" . 'return ' . \var_export($targetMapArr, true) . ";\n";
+        }
         $wb = \file_put_contents($this->cachedTargetMapFile, $dataStr);
         if (!$wb) {
             throw new \Exception("Can't write targetMap cache file: " . $this->cachedTargetMapFile);
